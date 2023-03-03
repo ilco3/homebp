@@ -1,0 +1,89 @@
+blueprint:
+  name: Zigbee2MQTT (ALEX) - Tuya Moes Smart Knob (Operation Mode = command and need "Home Assistant legacy entity attributes" check)
+  description: Automate your Tuya Smart Knob - ERS-10TZBVK-AA
+  domain: automation
+  input:
+    switch:
+      name: Tuya Smart Knob
+      description: Tuya Smart Knob used as Button
+      selector:
+        entity:
+          integration: mqtt
+          domain: sensor
+          multiple: false
+    light1:
+      name: light 1
+      description: light when know is not pressed
+      selector:
+        entity:
+          domain: light
+      default: []
+    light2:
+      name: light 2
+      description: light when know is pressed
+      selector:
+        entity:
+          domain: light
+      default: []
+    speed:
+      name: speed of the knob
+      description: multiplicator of the speed of light ;)
+      selector:
+        number:
+          min: 0.1
+          max: 1.0
+          step: 0.1
+      default: 0.5
+
+mode: restart
+max_exceeded: silent
+trigger:
+  - platform: state
+    entity_id: !input switch
+    not_to: ""
+    attribute: action
+action:
+  - variables:
+      command: "{{ trigger.to_state.state }}"
+      step: "{{ trigger.to_state.attributes.action_step_size }}"
+      time: "{{ trigger.to_state.attributes.action_transition_time }}"
+      speed: !input speed
+  - choose:
+      - conditions:
+          - "{{ command == 'toggle' }}"
+        sequence:
+          - service: light.toggle
+            entity_id: !input light1
+      - conditions:
+          - "{{ command == 'hue_move' }}"
+        sequence:
+          - service: light.toggle
+            entity_id: !input light2
+      - conditions:
+          - "{{ command == 'brightness_step_up' }}"
+        sequence:
+          - service: light.turn_on
+            entity_id: !input light1
+            data:
+              brightness_step_pct: "{{speed*step}}"
+      - conditions:
+          - "{{ command == 'brightness_step_down' }}"
+        sequence:
+          - service: light.turn_on
+            entity_id: !input light1
+            data:
+              brightness_step_pct: "-{{speed*step}}"
+      - conditions:
+          - "{{ command == 'color_temperature_step_up' }}"
+        sequence:
+          - service: light.turn_on
+            entity_id: !input light2
+            data:
+              brightness_step_pct: "{{speed*step}}"
+      - conditions:
+          - "{{ command == 'color_temperature_step_down' }}"
+        sequence:
+          - service: light.turn_on
+            entity_id: !input light2
+            data:
+              brightness_step_pct: "-{{speed*step}}"
